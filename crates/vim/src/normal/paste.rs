@@ -117,7 +117,7 @@ impl Vim {
                             to_insert = "\n".to_owned() + &to_insert;
                         }
                     } else if !line_mode && vim.mode == Mode::VisualLine {
-                        to_insert = to_insert + "\n";
+                        to_insert += "\n";
                     }
 
                     let display_range = if !selection.is_empty() {
@@ -291,7 +291,7 @@ mod test {
 
         cx.update_global(|store: &mut SettingsStore, cx| {
             store.update_user_settings::<VimSettings>(cx, |s| {
-                s.use_system_clipboard = Some(UseSystemClipboard::Never)
+                s.use_system_clipboard = UseSystemClipboard::Never
             });
         });
 
@@ -327,7 +327,7 @@ mod test {
 
         cx.update_global(|store: &mut SettingsStore, cx| {
             store.update_user_settings::<VimSettings>(cx, |s| {
-                s.use_system_clipboard = Some(UseSystemClipboard::OnYank)
+                s.use_system_clipboard = UseSystemClipboard::OnYank
             });
         });
 
@@ -432,7 +432,7 @@ mod test {
                 the laˇzy dog"});
         // paste in visual mode
         cx.simulate_shared_keystrokes("v i w p").await;
-        cx.shared_state().await.assert_eq(&indoc! {"
+        cx.shared_state().await.assert_eq(indoc! {"
                 The quick brown
                 the•
                 ˇfox jumps over
@@ -584,7 +584,7 @@ mod test {
 
         cx.update_global(|store: &mut SettingsStore, cx| {
             store.update_user_settings::<VimSettings>(cx, |s| {
-                s.use_system_clipboard = Some(UseSystemClipboard::Never)
+                s.use_system_clipboard = UseSystemClipboard::Never
             });
         });
 
@@ -630,7 +630,7 @@ mod test {
 
         cx.update_global(|store: &mut SettingsStore, cx| {
             store.update_user_settings::<VimSettings>(cx, |s| {
-                s.use_system_clipboard = Some(UseSystemClipboard::Never)
+                s.use_system_clipboard = UseSystemClipboard::Never
             });
         });
 
@@ -659,7 +659,7 @@ mod test {
 
         cx.update_global(|store: &mut SettingsStore, cx| {
             store.update_user_settings::<VimSettings>(cx, |s| {
-                s.use_system_clipboard = Some(UseSystemClipboard::Never)
+                s.use_system_clipboard = UseSystemClipboard::Never
             });
         });
 
@@ -707,7 +707,7 @@ mod test {
 
         cx.update_global(|store: &mut SettingsStore, cx| {
             store.update_user_settings::<VimSettings>(cx, |s| {
-                s.use_system_clipboard = Some(UseSystemClipboard::Never)
+                s.use_system_clipboard = UseSystemClipboard::Never
             });
         });
 

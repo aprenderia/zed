@@ -506,7 +506,7 @@ async fn test_basic_following(
 
     // Client B activates an item that doesn't implement following,
     // so the previously-opened screen-sharing item gets activated.
-    let unfollowable_item = cx_b.new_view(|cx| TestItem::new(cx));
+    let unfollowable_item = cx_b.new_view(TestItem::new);
     workspace_b.update(cx_b, |workspace, cx| {
         workspace.active_pane().update(cx, |pane, cx| {
             pane.add_item(Box::new(unfollowable_item), true, true, None, cx)
@@ -1649,7 +1649,7 @@ async fn test_following_into_excluded_file(
         cx.update(|cx| {
             cx.update_global::<SettingsStore, _>(|store, cx| {
                 store.update_user_settings::<WorktreeSettings>(cx, |settings| {
-                    settings.file_scan_exclusions = Some(vec!["**/.git".to_string()]);
+                    settings.file_scan_exclusions = vec!["**/.git".to_string()];
                 });
             });
         });

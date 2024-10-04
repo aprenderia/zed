@@ -113,9 +113,7 @@ impl MessageEditor {
             editor.set_show_indent_guides(false, cx);
             editor.set_completion_provider(Box::new(MessageEditorCompletionProvider(this)));
             editor.set_auto_replace_emoji_shortcode(
-                MessageEditorSettings::get_global(cx)
-                    .auto_replace_emoji_shortcode
-                    .unwrap_or_default(),
+                MessageEditorSettings::get_global(cx).auto_replace_emoji_shortcode,
             );
         });
 
@@ -130,9 +128,7 @@ impl MessageEditor {
         cx.observe_global::<settings::SettingsStore>(|view, cx| {
             view.editor.update(cx, |editor, cx| {
                 editor.set_auto_replace_emoji_shortcode(
-                    MessageEditorSettings::get_global(cx)
-                        .auto_replace_emoji_shortcode
-                        .unwrap_or_default(),
+                    MessageEditorSettings::get_global(cx).auto_replace_emoji_shortcode,
                 )
             })
         })
@@ -293,8 +289,8 @@ impl MessageEditor {
         completion_fn: impl Fn(&StringMatch) -> (String, CodeLabel),
     ) -> Vec<Completion> {
         let matches = fuzzy::match_strings(
-            &candidates,
-            &query,
+            candidates,
+            query,
             true,
             10,
             &Default::default(),
@@ -346,7 +342,7 @@ impl MessageEditor {
     ) -> Option<(Anchor, String, Vec<StringMatchCandidate>)> {
         let end_offset = end_anchor.to_offset(buffer.read(cx));
 
-        let Some(query) = buffer.update(cx, |buffer, _| {
+        let query = buffer.update(cx, |buffer, _| {
             let mut query = String::new();
             for ch in buffer.reversed_chars_at(end_offset).take(100) {
                 if ch == '@' {
@@ -358,9 +354,7 @@ impl MessageEditor {
                 query.push(ch);
             }
             None
-        }) else {
-            return None;
-        };
+        })?;
 
         let start_offset = end_offset - query.len();
         let start_anchor = buffer.read(cx).anchor_before(start_offset);
@@ -414,7 +408,7 @@ impl MessageEditor {
 
         let end_offset = end_anchor.to_offset(buffer.read(cx));
 
-        let Some(query) = buffer.update(cx, |buffer, _| {
+        let query = buffer.update(cx, |buffer, _| {
             let mut query = String::new();
             for ch in buffer.reversed_chars_at(end_offset).take(100) {
                 if ch == ':' {
@@ -450,9 +444,7 @@ impl MessageEditor {
                 query.push(ch);
             }
             None
-        }) else {
-            return None;
-        };
+        })?;
 
         let start_offset = end_offset - query.len() - 1;
         let start_anchor = buffer.read(cx).anchor_before(start_offset);

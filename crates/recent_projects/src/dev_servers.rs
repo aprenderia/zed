@@ -48,7 +48,6 @@ use workspace::{notifications::DetachAndPromptErr, AppState, ModalView, Workspac
 use crate::open_dev_server_project;
 use crate::ssh_connections::connect_over_ssh;
 use crate::ssh_connections::open_ssh_project;
-use crate::ssh_connections::RemoteSettingsContent;
 use crate::ssh_connections::SshConnection;
 use crate::ssh_connections::SshConnectionModal;
 use crate::ssh_connections::SshProject;
@@ -174,7 +173,7 @@ impl DevServerProjects {
     ) {
         let mut path = self.project_path_input.read(cx).text(cx).trim().to_string();
 
-        if path == "" {
+        if path.is_empty() {
             return;
         }
 
@@ -598,7 +597,7 @@ impl DevServerProjects {
                             })
                             .log_err();
 
-                            return Err(e);
+                            Err(e)
                         }
                     }
                 }
@@ -735,7 +734,6 @@ impl DevServerProjects {
                     ..Default::default()
                 });
                 cx.notify();
-                return;
             }
             _ => {
                 self.mode = Mode::Default(None);
@@ -1025,7 +1023,7 @@ impl DevServerProjects {
     fn update_settings_file(
         &mut self,
         cx: &mut ViewContext<Self>,
-        f: impl FnOnce(&mut RemoteSettingsContent) + Send + Sync + 'static,
+        f: impl FnOnce(&mut SshSettings) + Send + Sync + 'static,
     ) {
         let Some(fs) = self
             .workspace
@@ -1308,12 +1306,10 @@ impl DevServerProjects {
                             } else {
                                 "Create"
                             }
+                        } else if dev_server_id.is_some() {
+                            "Reconnect"
                         } else {
-                            if dev_server_id.is_some() {
-                                "Reconnect"
-                            } else {
-                                "Connect"
-                            }
+                            "Connect"
                         },
                     )
                     .style(ButtonStyle::Filled)

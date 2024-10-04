@@ -99,44 +99,68 @@ pub const CONNECTION_TIMEOUT: Duration = Duration::from_secs(20);
 
 actions!(client, [SignIn, SignOut, Reconnect]);
 
-#[derive(Clone, Default, Serialize, Deserialize, JsonSchema)]
-pub struct ClientSettingsContent {
-    server_url: Option<String>,
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct ClientSettings {
+    /// The server to connect to. If the environment variable
+    /// ZED_SERVER_URL is set, it will override this setting.
+    pub server_url: String,
 }
 
-#[derive(Deserialize)]
-pub struct ClientSettings {
-    pub server_url: String,
+impl Default for ClientSettings {
+    fn default() -> Self {
+        Self {
+            server_url: "https://zed.dev".to_owned(),
+        }
+    }
 }
 
 impl Settings for ClientSettings {
     const KEY: Option<&'static str> = None;
 
-    type FileContent = ClientSettingsContent;
+    type FileContent = Self;
 
     fn load(sources: SettingsSources<Self::FileContent>, _: &mut AppContext) -> Result<Self> {
         let mut result = sources.json_merge::<Self>()?;
         if let Some(server_url) = &*ZED_SERVER_URL {
-            result.server_url.clone_from(&server_url)
+            result.server_url.clone_from(server_url)
         }
         Ok(result)
     }
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProxySettingsContent {
-    proxy: Option<String>,
+#[serde(default)]
+pub struct ProxySettings {
+    /// Set a proxy to use. The proxy protocol is specified by the URI scheme.
+    ///
+    /// Supported URI scheme: `http`, `https`, `socks4`, `socks4a`, `socks5`,
+    /// `socks5h`. `http` will be used when no scheme is specified.
+    ///
+    /// By default no proxy will be used, or Zed will try get proxy settings from
+    /// environment variables.
+    ///
+    /// Examples:
+    ///   - "proxy": "socks5://localhost:10808"
+    ///   - "proxy": "http://127.0.0.1:10809"
+    #[schemars(example = "Self::example_1")]
+    #[schemars(example = "Self::example_2")]
+    pub proxy: Option<String>,
 }
 
-#[derive(Deserialize, Default)]
-pub struct ProxySettings {
-    pub proxy: Option<String>,
+impl ProxySettings {
+    fn example_1() -> String {
+        "http://127.0.0.1:10809".to_owned()
+    }
+    fn example_2() -> String {
+        "socks5://localhost:10808".to_owned()
+    }
 }
 
 impl Settings for ProxySettings {
     const KEY: Option<&'static str> = None;
 
-    type FileContent = ProxySettingsContent;
+    type FileContent = Self;
 
     fn load(sources: SettingsSources<Self::FileContent>, _: &mut AppContext) -> Result<Self> {
         Ok(Self {
@@ -1141,7 +1165,7 @@ impl Client {
             request_headers.insert("x-zed-app-version", HeaderValue::from_str(&app_version)?);
             request_headers.insert(
                 "x-zed-release-channel",
-                HeaderValue::from_str(&release_channel.map(|r| r.dev_name()).unwrap_or("unknown"))?,
+                HeaderValue::from_str(release_channel.map(|r| r.dev_name()).unwrap_or("unknown"))?,
             );
 
             match url_scheme {
@@ -1344,16 +1368,14 @@ impl Client {
                 );
             }
 
-            let user = serde_json::from_slice::<GithubUser>(body.as_slice()).map_err(|err| {
+            serde_json::from_slice::<GithubUser>(body.as_slice()).map_err(|err| {
                 log::error!("Error deserializing: {:?}", err);
                 log::error!(
                     "GitHub API response text: {:?}",
                     String::from_utf8_lossy(body.as_slice())
                 );
                 anyhow!("error deserializing GitHub user")
-            })?;
-
-            user
+            })?
         };
 
         let query_params = [
@@ -1408,7 +1430,7 @@ impl Client {
 
     pub async fn sign_out(self: &Arc<Self>, cx: &AsyncAppContext) {
         self.state.write().credentials = None;
-        self.disconnect(&cx);
+        self.disconnect(cx);
 
         if self.has_credentials(cx).await {
             self.credentials_provider

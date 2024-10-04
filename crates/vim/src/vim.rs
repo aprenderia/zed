@@ -46,6 +46,8 @@ use crate::state::ReplayableAction;
 /// Whether or not to enable Vim mode.
 ///
 /// Default: false
+#[derive(Copy, Clone, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(default, transparent)]
 pub struct VimModeSetting(pub bool);
 
 /// An Action to Switch between modes
@@ -99,7 +101,7 @@ pub fn init(cx: &mut AppContext) {
             let fs = workspace.app_state().fs.clone();
             let currently_enabled = Vim::enabled(cx);
             update_settings_file::<VimModeSetting>(fs, cx, move |setting, _| {
-                *setting = Some(!currently_enabled)
+                *setting = VimModeSetting(!currently_enabled);
             })
         });
 
@@ -443,15 +445,14 @@ impl Vim {
         // Sync editor settings like clip mode
         self.sync_vim_settings(cx);
 
-        if VimSettings::get_global(cx).toggle_relative_line_numbers {
-            if self.mode != self.last_mode {
-                if self.mode == Mode::Insert || self.last_mode == Mode::Insert {
-                    self.update_editor(cx, |vim, editor, cx| {
-                        let is_relative = vim.mode != Mode::Insert;
-                        editor.set_relative_line_number(Some(is_relative), cx)
-                    });
-                }
-            }
+        if VimSettings::get_global(cx).toggle_relative_line_numbers
+            && self.mode != self.last_mode
+            && (self.mode == Mode::Insert || self.last_mode == Mode::Insert)
+        {
+            self.update_editor(cx, |vim, editor, cx| {
+                let is_relative = vim.mode != Mode::Insert;
+                editor.set_relative_line_number(Some(is_relative), cx)
+            });
         }
 
         if leave_selections {
@@ -510,10 +511,8 @@ impl Vim {
                             point = movement::left(map, selection.head());
                         }
                         selection.collapse_to(point, selection.goal)
-                    } else if !last_mode.is_visual() && mode.is_visual() {
-                        if selection.is_empty() {
-                            selection.end = movement::right(map, selection.start);
-                        }
+                    } else if !last_mode.is_visual() && mode.is_visual() && selection.is_empty() {
+                        selection.end = movement::right(map, selection.start);
                     }
                 });
             })
@@ -526,7 +525,7 @@ impl Vim {
             return global_state.recorded_count;
         }
 
-        let count = if self.post_count == None && self.pre_count == None {
+        let count = if self.post_count.is_none() && self.pre_count.is_none() {
             return None;
         } else {
             Some(self.post_count.take().unwrap_or(1) * self.pre_count.take().unwrap_or(1))
@@ -1046,10 +1045,11 @@ impl Vim {
                 }
             },
             Some(Operator::Jump { line }) => self.jump(text, line, cx),
-            _ => match self.mode {
-                Mode::Replace => self.multi_replace(text, cx),
-                _ => {}
-            },
+            _ => {
+                if self.mode == Mode::Replace {
+                    self.multi_replace(text, cx)
+                }
+            }
         }
     }
 
@@ -1070,12 +1070,10 @@ impl Vim {
 impl Settings for VimModeSetting {
     const KEY: Option<&'static str> = Some("vim_mode");
 
-    type FileContent = Option<bool>;
+    type FileContent = Self;
 
     fn load(sources: SettingsSources<Self::FileContent>, _: &mut AppContext) -> Result<Self> {
-        Ok(Self(sources.user.copied().flatten().unwrap_or(
-            sources.default.ok_or_else(Self::missing_default)?,
-        )))
+        Ok(sources.user.copied().unwrap_or(*sources.default))
     }
 }
 
@@ -1091,7 +1089,8 @@ pub enum UseSystemClipboard {
     OnYank,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
 struct VimSettings {
     pub toggle_relative_line_numbers: bool,
     pub use_system_clipboard: UseSystemClipboard,
@@ -1100,19 +1099,22 @@ struct VimSettings {
     pub custom_digraphs: HashMap<String, Arc<str>>,
 }
 
-#[derive(Clone, Default, Serialize, Deserialize, JsonSchema)]
-struct VimSettingsContent {
-    pub toggle_relative_line_numbers: Option<bool>,
-    pub use_system_clipboard: Option<UseSystemClipboard>,
-    pub use_multiline_find: Option<bool>,
-    pub use_smartcase_find: Option<bool>,
-    pub custom_digraphs: Option<HashMap<String, Arc<str>>>,
+impl Default for VimSettings {
+    fn default() -> Self {
+        Self {
+            toggle_relative_line_numbers: false,
+            use_system_clipboard: UseSystemClipboard::Always,
+            use_multiline_find: false,
+            use_smartcase_find: false,
+            custom_digraphs: Default::default(),
+        }
+    }
 }
 
 impl Settings for VimSettings {
     const KEY: Option<&'static str> = Some("vim");
 
-    type FileContent = VimSettingsContent;
+    type FileContent = Self;
 
     fn load(sources: SettingsSources<Self::FileContent>, _: &mut AppContext) -> Result<Self> {
         sources.json_merge()

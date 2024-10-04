@@ -79,7 +79,7 @@ impl BaseKeymap {
         Self::OPTIONS
             .iter()
             .copied()
-            .find_map(|(name, value)| (name == option).then(|| value))
+            .find_map(|(name, value)| (name == option).then_some(value))
             .unwrap_or_default()
     }
 }
@@ -87,15 +87,15 @@ impl BaseKeymap {
 impl Settings for BaseKeymap {
     const KEY: Option<&'static str> = Some("base_keymap");
 
-    type FileContent = Option<Self>;
+    type FileContent = Self;
 
     fn load(
         sources: SettingsSources<Self::FileContent>,
         _: &mut gpui::AppContext,
     ) -> anyhow::Result<Self> {
-        if let Some(Some(user_value)) = sources.user.copied() {
+        if let Some(user_value) = sources.user.copied() {
             return Ok(user_value);
         }
-        sources.default.ok_or_else(Self::missing_default)
+        Ok(*sources.default)
     }
 }
